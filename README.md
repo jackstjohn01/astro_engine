@@ -1,4 +1,4 @@
-# astro-engine
+# astro_engine
 Astrodynamics engine project
 
 main.py - main engine  
