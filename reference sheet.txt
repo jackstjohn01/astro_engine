@@ -1,0 +1,9 @@
+General object properties: x, y, vx, vy, m, r, name, color
+
+Spacecraft properties: x, y, vx, vy, m, m_fuel, r, name, color
+Command properties: dv, 
+
+m_fuel
+m_wet = m + m_fuel
+
+Tsiolkovsky rocket equation?
