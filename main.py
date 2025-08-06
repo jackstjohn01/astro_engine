@@ -7,18 +7,6 @@ import time
 import csv
 from config import G, dt, steps, fps_limit, scale
 
-
-# CONSTANTS/SETTINGS
-G = 6.6743E-11
-
-dt = 1
-steps = 500000000
-fps_limit = 0
-scale = 1e-5
-
-
-
-
 # BODY CLASS
 class Body:
     def __init__(self, x, y, vx, vy, m, r, name, color): # Body object properties
@@ -286,4 +274,5 @@ mech_e_final = energy
 mech_e_diff = mech_e_final - mech_e_initial
 mech_e_error = np.abs(mech_e_diff) / np.abs(mech_e_initial) * 100
 print("System energy error = " + str(mech_e_error) + "%")
+
 
