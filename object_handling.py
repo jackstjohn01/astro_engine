@@ -13,7 +13,9 @@ with open("C:/Users/jacks/Documents/Astrodynamics Engine/Sim Presets/earth_syste
 spacecrafts = []
 with open("C:/Users/jacks/Documents/Astrodynamics Engine/Sim Presets/spacecraft.csv", 'r') as file:
     lines = file.read().splitlines()
-    for line in lines:
+
+    for line in lines: # reads JUST the first line (spacecraft properties)
         x, y, vx, vy, m, r, name, color = line.split(",")
         spacecraft = Spacecraft(float(x.strip()), float(y.strip()), float(vx.strip()), float(vy.strip()), float(m.strip()), float(r.strip()), name.strip(), color.strip())
         spacecrafts.append(spacecraft)
+        break

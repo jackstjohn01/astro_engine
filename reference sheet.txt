@@ -1,7 +1,7 @@
 General object properties: x, y, vx, vy, m, r, name, color
 
 Spacecraft properties: x, y, vx, vy, m, m_fuel, r, name, color
-Command properties: dv, 
+Command properties: +t, Δv_x, Δv_y
 
 m_fuel
 m_wet = m + m_fuel
