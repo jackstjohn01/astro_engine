@@ -2,5 +2,10 @@
 Astrodynamics engine project
 
 main.py - main engine  
-config.py - user editable settings  
-asteroid_gen.py - tool currently just to generate asteroids in asteroid belt
+editor.py - edit spacecraft files (will have environment modification eventually)
+
+Goals/in progress:
+- adding propulsion to spacecraft objects
+- environment editor
+- 3D
+- hybrid RK4/VV for spacecraft and large bodies respectively
