@@ -5,3 +5,4 @@ dt = 1
 steps = 500000000
 fps_limit = 0
 scale = 1e-5
+render_step = 10
