@@ -9,3 +9,7 @@ Goals/in progress:
 - environment editor
 - 3D
 - hybrid RK4/VV for spacecraft and large bodies respectively
+
+Research:
+- Kalman filter
+- Tsiolkovsky rocket equation
