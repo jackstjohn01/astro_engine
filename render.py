@@ -48,7 +48,7 @@ class PygameRenderer:
                 self.offset = zoom_point - world_pos_before * self.scale
         return True
 
-    def draw(self, bodies, spacecrafts, step, dt, mech_e_error):
+    def draw(self, bodies, spacecrafts, step, dt):
         self.screen.fill((0, 0, 0))
 
         def draw_object(obj):
@@ -68,14 +68,14 @@ class PygameRenderer:
         zoom_inverse_km = (1 / self.scale / 1000)
         screen_width_km = width_pixels * zoom_inverse_km
         zoom_text = self.font.render(f"Width: {screen_width_km:.2f} km", True, (255, 255, 255))
-        energy_text = self.font.render(f"Energy error: {mech_e_error:.10f} %", True, (255, 255, 255))
+        #energy_text = self.font.render(f"Energy error: {mech_e_error:.10f} %", True, (255, 255, 255))
         simtime = step * dt
         simtime_text = self.font.render(f"Sim time: {simtime:.2f} secs, {simtime/60/60/24:.2f} days, {simtime/60/60/24/365:.2f} yrs", True, (255, 255, 255))
         fps = self.clock.get_fps()
         fps_text = self.font.render(f"FPS: {fps:.2f}", True, (255, 255, 255))
 
         self.screen.blit(zoom_text, (10, 10))
-        self.screen.blit(energy_text, (10, 30))
+        #self.screen.blit(energy_text, (10, 30))
         self.screen.blit(simtime_text, (10, 50))
         self.screen.blit(fps_text, (10, 70))
 

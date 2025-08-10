@@ -1,9 +1,10 @@
 General object properties: x, y, vx, vy, m, r, name, color
 
-Spacecraft properties: x, y, vx, vy, m, m_fuel, r, name, color
+Spacecraft properties: name, color, x, y, vx, vy, m, m_p, r, Isp, thrust
 Command properties: +t, Δv_x, Δv_y
 
-m_fuel
-m_wet = m + m_fuel
 
-Tsiolkovsky rocket equation?
+
+m = dry mass
+m_p = propellant mass
+r = radius of object
