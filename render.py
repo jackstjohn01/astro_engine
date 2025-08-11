@@ -1,11 +1,9 @@
 # render.py
 import pygame
 import numpy as np
-from datetime import datetime
-from config import scale as global_scale
 
 class PygameRenderer:
-    def __init__(self, screen_width=800, screen_height=600):
+    def __init__(self, scale, screen_width=800, screen_height=600):
         pygame.init()
         self.font = pygame.font.SysFont('None', 14)
         self.screen = pygame.display.set_mode((screen_width, screen_height), pygame.RESIZABLE)
@@ -17,7 +15,7 @@ class PygameRenderer:
         self.zoom_sensitivity = 1.1
         self.min_scale = 1e-15
         self.max_scale = 3.5e-4
-        self.scale = global_scale
+        self.scale = scale
         self.screen_width = screen_width
         self.screen_height = screen_height
 
@@ -53,7 +51,7 @@ class PygameRenderer:
 
         def draw_object(obj):
             pos = np.array([obj.pos[0], -obj.pos[1]]) * self.scale + self.offset
-            screen_size = obj.r * self.scale
+            screen_size = obj.radius * self.scale
             draw_radius = max(2, int(screen_size))
             pygame.draw.circle(self.screen, pygame.Color(obj.color), pos.astype(int), draw_radius)
             label = self.font.render(obj.name, True, (255, 255, 255))
