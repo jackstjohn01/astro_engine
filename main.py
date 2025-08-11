@@ -1,17 +1,39 @@
 # IMPORTS
-from datetime import datetime
 import numpy as np
 
-from config import dt, steps, fps_limit, render_step, g0
-from object_handling import bodies, spacecrafts
+from config import dt, steps, fps_limit, render_step
+from objects import bodies
 from render import PygameRenderer
-from sim_funcs import mech_e_calc, collision_handling
+
+
+
+
+
+# COLLISION HANDLING
+def collision_handling():
+    to_remove = []
+
+    all_objects = bodies
+    for i, obj1 in enumerate(all_objects):
+        for obj2 in all_objects[i+1:]:
+            if obj1 is obj2:
+                continue
+            r = np.linalg.norm(obj1.pos - obj2.pos)
+            if r <= (obj1.r + obj2.r):
+                print(f"Collision: {obj1.name} hit {obj2.name}")
+                if obj1.m > obj2.m:
+                    to_remove.append(obj2)
+                elif obj1.m < obj2.m:
+                    to_remove.append(obj1)
+
+    for obj in to_remove:
+        if obj in bodies:
+            bodies.remove(obj)
 
 
 
 # SETUP
 renderer = PygameRenderer()
-mech_e_initial = mech_e_calc()
 step = 0
 
 
@@ -22,40 +44,15 @@ while renderer.handle_events() and step < steps:
     # PHYSICS HANDLING
     for body in bodies:
         body.movement_update(bodies)
-    for spacecraft in spacecrafts:
-        spacecraft.movement_update(bodies, dt)
-        if step % 10:
-            print(spacecraft.vel)
 
     collision_handling()
 
-
-    '''if step % 1000 == 0:
-        energy = mech_e_calc()
-        mech_e_diff = energy - mech_e_initial
-        mech_e_error = np.abs(mech_e_diff) / np.abs(mech_e_initial) * 100'''
-
     # RENDERING
     if step % render_step == 0:
-        renderer.draw(bodies, spacecrafts, step, dt)
+        renderer.draw(bodies, step, dt)
     step += 1
     renderer.clock.tick(fps_limit)
 renderer.quit()
-
-
-elapsed_simtime = dt * step
-# OUTPUTS
-if elapsed_simtime < 60:
-    print(f"Simtime elapsed (s): {elapsed_simtime:.2f}")
-elif elapsed_simtime < 3600:
-    minutes = elapsed_simtime / 60
-    print(f"Simtime elapsed (min): {minutes:.2f}")
-elif elapsed_simtime < 86400:
-    hours = elapsed_simtime / 3600
-    print(f"Simtime elapsed (hr): {hours:.2f}")
-else:
-    days = elapsed_simtime / 86400
-    print(f"Simtime elapsed (day): {days:.2f}")
 
 
 

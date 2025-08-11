@@ -48,7 +48,7 @@ class PygameRenderer:
                 self.offset = zoom_point - world_pos_before * self.scale
         return True
 
-    def draw(self, bodies, spacecrafts, step, dt):
+    def draw(self, bodies, step, dt):
         self.screen.fill((0, 0, 0))
 
         def draw_object(obj):
@@ -60,7 +60,7 @@ class PygameRenderer:
             label_pos = pos + np.array([draw_radius + 5, -draw_radius])
             self.screen.blit(label, label_pos.astype(float))
 
-        for obj in bodies + spacecrafts:
+        for obj in bodies:
             draw_object(obj)
 
         # HUD
