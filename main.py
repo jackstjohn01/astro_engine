@@ -1,9 +1,8 @@
 # IMPORTS
 import numpy as np
-
-from config import dt, steps, fps_limit, render_step
 from objects import bodies
 from render import PygameRenderer
+from config import dt, steps, fps_limit, render_step
 
 
 
