@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import csv
 import numpy as np
-from config import g0  # Make sure you have g0 defined in your config.py (9.80665 m/s²)
+from config import g0  # 9.80665 m/s²
 
 
 class SpacecraftEditor:
@@ -11,10 +11,13 @@ class SpacecraftEditor:
         self.root.title("Spacecraft CSV Editor")
 
         self.file_path = None
-        self.entries = {}        # To store property entries by name
-        self.burn_entries = []   # To store burn command row widgets
+        self.entries = {}        # Entry widgets by name
+        self.vars = {}           # StringVar by name (so we can trace)
+        self.burn_entries = []   # Burn command row widgets
 
         self.build_ui()
+        # initial update
+        self.update_dv()
 
     def build_ui(self):
         # Main frame
@@ -50,8 +53,8 @@ class SpacecraftEditor:
         prop_frame.columnconfigure(0, weight=1)
         prop_frame.columnconfigure(1, weight=1)
 
-        # Add properties (name shown first but stored with quotes)
-        self.add_property(identity_frame, "name", callback=self.update_dv, width=20)
+        # Add properties (store StringVar so we can trace)
+        self.add_property(identity_frame, "name", width=20)             # name not needed for dv
         self.add_property(identity_frame, "color", width=15)
 
         self.add_property(posvel_frame, "x", width=12)
@@ -59,11 +62,12 @@ class SpacecraftEditor:
         self.add_property(posvel_frame, "vx", width=12)
         self.add_property(posvel_frame, "vy", width=12)
 
-        self.add_property(mass_frame, "m", width=12, label="Dry Mass (kg)")
-        self.add_property(mass_frame, "m_p", width=12, label="Propellant Mass (kg)")
+        # Bind these fields to live delta-v updates
+        self.add_property(mass_frame, "m", width=12, label="Dry Mass (kg)", callback=self.update_dv)
+        self.add_property(mass_frame, "m_p", width=12, label="Propellant Mass (kg)", callback=self.update_dv)
         self.add_property(mass_frame, "r", width=12, label="Radius (m)")
 
-        self.add_property(rocket_frame, "Isp", width=12, label="Isp (s)")
+        self.add_property(rocket_frame, "Isp", width=12, label="Isp (s)", callback=self.update_dv)
         self.add_property(rocket_frame, "thrust", width=12, label="Thrust (N)")
 
         # === Burn Commands Frame ===
@@ -104,12 +108,19 @@ class SpacecraftEditor:
         ent = tk.Entry(frame, textvariable=var, width=width)
         ent.pack(side="left", fill="x", expand=True)
 
-        # Save entry widget by property name
+        # Save entry widget and var by property name
         self.entries[name] = ent
+        self.vars[name] = var
 
-        # Bind callback if provided
+        # Bind callback if provided (trace the variable)
         if callback:
-            var.trace_add("write", lambda *args: callback())
+            # Use a small wrapper to avoid trace signature issues
+            def trace_cb(*args):
+                try:
+                    callback()
+                except Exception:
+                    pass
+            var.trace_add("write", trace_cb)
 
     def add_burn_row(self, values=None):
         """Add a new burn command row, optionally filling with 'values'."""
@@ -151,7 +162,6 @@ class SpacecraftEditor:
         """Update the order numbers of the burn commands after add/delete."""
         for i, burn in enumerate(self.burn_entries, start=1):
             burn["label"].config(text=str(i))
-            # Also re-grid the rows to keep order consistent
             burn["frame"].grid_configure(row=i)
 
     def open_csv(self):
@@ -276,13 +286,25 @@ class SpacecraftEditor:
     def update_dv(self, *args):
         """Calculate and update delta-v budget label live."""
         try:
-            m = float(self.entries["m"].get())
-            m_p = float(self.entries["m_p"].get())
-            Isp = float(self.entries["Isp"].get())
+            # Use vars (StringVar) to get the latest typed value
+            m_str = self.vars.get("m", tk.StringVar()).get().strip()
+            mp_str = self.vars.get("m_p", tk.StringVar()).get().strip()
+            Isp_str = self.vars.get("Isp", tk.StringVar()).get().strip()
+
+            # allow commas and whitespace, be permissive
+            def to_float(s):
+                if s is None or s == "":
+                    raise ValueError("Empty")
+                return float(s.replace(",", "").strip())
+
+            m = to_float(m_str)
+            m_p = to_float(mp_str)
+            Isp = to_float(Isp_str)
 
             if m <= 0 or (m + m_p) <= 0:
                 raise ValueError("Mass values must be positive")
 
+            # correct Tsiolkovsky: dv = Isp * g0 * ln( (m + m_p) / m )
             dv_budget = Isp * g0 * np.log((m + m_p) / m)
             self.dv_label.config(text=f"Delta-v budget: {dv_budget:.2f} m/s")
         except Exception:

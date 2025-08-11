@@ -19,12 +19,13 @@ step = 0
 while renderer.handle_events() and step < steps:
     elapsed_simtime = dt * step
 
-
     # PHYSICS HANDLING
     for body in bodies:
         body.movement_update(bodies)
     for spacecraft in spacecrafts:
-        spacecraft.movement_update(bodies, elapsed_simtime)
+        spacecraft.movement_update(bodies, dt)
+        if step % 10:
+            print(spacecraft.vel)
 
     collision_handling()
 

@@ -83,7 +83,8 @@ class Spacecraft():
         self.color = color
         self.Isp = Isp
         self.thrust = thrust
-# FORCE METHOD
+
+
     def gravity_force(self, other_bodies): # calculates the total force on a body
         total_force = np.array([0.0, 0.0])
 
@@ -97,22 +98,19 @@ class Spacecraft():
             r = np.linalg.norm(r_vec) # normalizing new array to scale total_force later (previously math.sqrt((other.x - self.x)**2 + (other.y - self.y)**2))
             
             if r == 0:
-                continue
-            force_mag = G * self.total_mass * other.m / r**2
+                continue            
+
+            force_mag = G * self.m * other.m / r**2
             force_dir = r_vec / r
             force = (force_mag * force_dir)
 
             total_force += force
+
         return total_force
     
-    def thrust_force(self, elapsed_simtime):
+    def thrust_force(self, dt):
         thrust_vec = np.array([0.0,0.0])
         mdot = 0
-        thrust = self.thrust
-        Isp = self.Isp
-        m = self.m # dry mass
-        m_p = self.m_p # propellant mass
-        m0 = m + m_p
 
         for burn in self.burns:
             burn_start = burn[0]
@@ -121,42 +119,50 @@ class Spacecraft():
 
             dv_vec = np.array([dvx, dvy])
             dv_mag = np.linalg.norm(dv_vec)
+            if dv_mag == 0:
+                continue
+
             dir = dv_vec/dv_mag
-            
-            v_e = Isp * g0
-            mf = m0 * np.exp(-dv_mag / v_e)
-            m_fuel = m0 - mf
-            mdot = thrust/v_e
-            t_burn = m_fuel/mdot
+
+            v_e = self.Isp * g0
+
+            # Use current total_mass at this point (already updated)
+            mf = self.total_mass * np.exp(-dv_mag / v_e)
+
+            m_fuel = self.total_mass - mf
+            mdot = self.thrust / v_e
+
+            t_burn = m_fuel / mdot
             burn_end = burn_start + t_burn
 
-            if burn_start <= elapsed_simtime < burn_end:
-                thrust_vec = thrust * dir
+            if burn_start <= dt < burn_end and self.m_p > 0:
+                thrust_vec = self.thrust * dir
                 break
         return thrust_vec, mdot
 
 
-
 # POSITION UPDATING
-    def movement_update(self, bodies, elapsed_simtime):
-        gravity_force = self.gravity_force(bodies)
-        thrust_force, mdot = self.thrust_force(elapsed_simtime)
+    def movement_update(self, bodies, dt):
+        # Update fuel mass before computing acceleration for this step
+        thrust_force, mdot = self.thrust_force(dt)
 
+        self.m_p -= mdot * dt
+        if self.m_p < 0:
+            self.m_p = 0
         self.total_mass = self.m + self.m_p
+
+        gravity_force = self.gravity_force(bodies)
         acc_old = (gravity_force + thrust_force) / self.total_mass
 
-        self.pos += self.vel * dt + .5 * acc_old * dt**2
+
+
+        self.pos += self.vel * dt + 0.5 * acc_old * dt**2
 
         gravity_force = self.gravity_force(bodies)
-        thrust_force, _ = self.thrust_force(elapsed_simtime)
+        thrust_force, _ = self.thrust_force(dt)
         acc_new = (gravity_force + thrust_force) / self.total_mass
 
         self.acc = acc_new
-        self.vel += .5 * (acc_old + acc_new) * dt
+        self.vel += 0.5 * (acc_old + acc_new) * dt
 
-        self.m_p = self.m_p - mdot * dt
-        self.total_mass = self.m_p + self.m
-
-        print(self.pos)
-
-        
+            
