@@ -2,7 +2,7 @@
 Astrodynamics engine project
 
 main.py - main engine  
-editor.py - edit spacecraft files (will have environment modification eventually)
+
 
 Goals/in progress:
 - adding propulsion to spacecraft objects
