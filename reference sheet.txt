@@ -1,10 +1,21 @@
-General object properties: x, y, vx, vy, m, r, name, color
+General object properties: name, color, x, y, vx, vy, mass, radius 
+    Display properties: name, color
+    Position/movement: x, y, vx, vy
+    Physical characteristics: mass, radius
 
-Spacecraft properties: name, color, x, y, vx, vy, m, m_p, r, Isp, thrust
-Command properties: +t, Δv_x, Δv_y
+
+Ephemerides:
+    https://ssd.jpl.nasa.gov/horizons/app.html#/
+
+Earth/Moon 11 Aug 2025
+    Earth = Body("Earth", '#0000FF', 0, 0, 0, 0, 5.972e+24, 6371000)
+    Moon = Body("Moon", "#FFFFFF", -394613426.313, 22819806.6281, 104.185926115, -984.142724936, 7.34767309e+22, 1737530)
 
 
+IAS15 (Rein & Spiegel)?
+Lagrangian and Hamiltonian energy integration
 
-m = dry mass
-m_p = propellant mass
-r = radius of object
+To-do:
+    - Distance softening to prevent zero division or singularities
+    - Momentum conservation in collisions
+    - Strategy pattern for integrator
