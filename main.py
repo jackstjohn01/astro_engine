@@ -57,7 +57,7 @@ class ForceCalculator:
         self.mass_threshold = mass_threshold
     
     def gravity_force(self, target_object, other_objects): # calculates the total force on a body
-        total_force = np.array([0.0, 0.0])
+        total_force = np.array([0.0, 0.0, 0.0])
 
         for other in other_objects: # iterate through list of objects
             if other is target_object:
@@ -85,10 +85,10 @@ class ForceCalculator:
 
 # CELESTIAL BODY
 class CelestialBody:
-    def __init__(self, name, color, x, y, vx, vy, mass, radius): # Body object properties
-        self.pos = np.array([x, y], dtype=float)
-        self.vel = np.array([vx, vy], dtype=float)
-        self.acc = np.array([0.0, 0.0])
+    def __init__(self, name, color, x, y, z, vx, vy, vz, mass, radius): # Body object properties
+        self.pos = np.array([x, y, z], dtype=float)
+        self.vel = np.array([vx, vy, vz], dtype=float)
+        self.acc = np.array([0.0, 0.0, 0.0])
         self.mass = mass
         self.radius = radius
         self.name = name
