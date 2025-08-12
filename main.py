@@ -185,7 +185,7 @@ renderer = PygameRenderer(scale)
 
 
 # SIMULATION LOOP
-while renderer.handle_events() and world.integrator.steps < steps:
+while renderer.handle_events(world.objects) and world.integrator.steps < steps:
     if integrator.steps == 0:
         world.add_object()
     world.step()
