@@ -57,7 +57,7 @@ class ForceCalculator:
         self.mass_threshold = mass_threshold
     
     def gravity_force(self, target_object, other_objects): # calculates the total force on a body
-        total_force = np.array([0.0, 0.0])
+        total_force = np.array([0.0, 0.0, 0.0])
 
         for other in other_objects: # iterate through list of objects
             if other is target_object:
@@ -85,10 +85,10 @@ class ForceCalculator:
 
 # CELESTIAL BODY
 class CelestialBody:
-    def __init__(self, name, color, x, y, vx, vy, mass, radius): # Body object properties
-        self.pos = np.array([x, y], dtype=float)
-        self.vel = np.array([vx, vy], dtype=float)
-        self.acc = np.array([0.0, 0.0])
+    def __init__(self, name, color, x, y, z, vx, vy, vz, mass, radius): # Body object properties
+        self.pos = np.array([x, y, z], dtype=float)
+        self.vel = np.array([vx, vy, vz], dtype=float)
+        self.acc = np.array([0.0, 0.0, 0.0])
         self.mass = mass
         self.radius = radius
         self.name = name
@@ -100,10 +100,10 @@ class EnvironmentBuilder:
         self.objects = []
     
     def build_solar_system(self):
-        sun     = CelestialBody("Sun",     "#FFBB00", -614529066.354, -815946659.518, 12.7801684586, -2.34188402066, 1.98841e+30, 695700000)
-        earth   = CelestialBody("Earth",   "#0000FF", 1.1414738e+11, -9.98583366e+10, 18990.741, 22425.074, 5.972e+24, 6371000)
-        moon    = CelestialBody("Moon",    "#FFFFFF", 1.14516863e+11, -9.99007525e+10, 19086.972, 23474.89, 7.34767309e+22, 1737530)
-        #mercury = CelestialBody("Mercury", "#4D2323", 3.155344199074432e+10, -5.693882536298677e+10, 3.286977437475324e+04, 2.602455558070761e+04, 3.302e+23, 2439400)
+        sun     = CelestialBody("Sun",     "#FFBB00", -614529066.354, -815946659.518, 22627052.3456, 12.7801684586, -2.34188402066, -0.23932935572, 1.98841e+30, 695700000)
+        earth   = CelestialBody("Earth",   "#0000FF", 1.1414738e+11, -9.98583366e+10, 28102512.01, 18990.741, 22425.074, -2.810768222, 5.972e+24, 6371000)
+        moon    = CelestialBody("Moon",    "#FFFFFF", 1.14516863e+11, -9.99007525e+10, 31151231.42, 19086.972, 23474.89, 92.82801134, 7.34767309e+22, 1737530)
+        mercury = CelestialBody("Mercury", "#4D2323", 53230431404.1, -9265716120.34, -5606570719.26, -1864.69260574, 50301.2129353, 4282.88184459, 3.302e+23, 2439400)
         #venus   = CelestialBody("Venus",   "#FFE18E", 9.734550332424313e+10, 4.743339899870563e+10, -1.545339281356930e+04, 3.132956163213875e+04, 4.8685e+24, 6051840)
        # mars    = CelestialBody("Mars",    "#B6330B", -2.238631954292564e+11, -9.091456886987776e+10, 1.002296479269221e+04, -2.037721994728289e+04, 6.4171e+23, 3389920)
         #jupiter = CelestialBody("Jupiter", "#A35308", -7.963414575382397e+10, 7.670754963765473e+11, -1.316050304962360e+04, -738.1110975861913, 1.89819e+27, 69911000)
@@ -111,7 +111,7 @@ class EnvironmentBuilder:
       #  uranus  = CelestialBody("Uranus",  "#CDFFF4", 1.557307946542705e+12, 2.469762230835388e+12, -5823.196753297577, 3317.194211276365, 8.6813e+25, 25362000)
        # neptune = CelestialBody("Neptune", "#0A53C0", 4.470114269169979e+12, 3.927923557755202e+09, -52.30520831625361, 5470.802134455399, 1.02409e+26, 24624000)
       #  pluto   = CelestialBody("Pluto",   "#36007C", 2.812885215178998e+12, -4.459136259323923e+12, 4716.599497405087, 1678.836827667972, 1.307e+22, 1188300)
-        self.objects.extend([sun, earth, moon])
+        self.objects.extend([sun, earth, moon, mercury])
 
 # WORLD MANAGER
 class World: # "scene manager"
@@ -185,14 +185,19 @@ renderer = PygameRenderer(scale)
 
 
 # SIMULATION LOOP
-while renderer.handle_events() and world.integrator.steps < steps:
+running = True
+while running and world.integrator.steps < steps:
+    running = renderer.handle_events(world.objects)
+    
     if integrator.steps == 0:
         world.add_object()
+    
     world.step()
 
     # RENDERING
     if world.integrator.steps % render_step == 0:
         renderer.draw(world.objects, world.integrator.steps, dt)
+    
     renderer.clock.tick(fps_limit)
 
     # OUTPUT
