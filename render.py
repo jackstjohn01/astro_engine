@@ -26,9 +26,11 @@ class PygameRenderer:
         self.pitch = np.pi / 6
         self.rotating = False
         self.last_mouse_pos_rot = None
+        self.relative_orientation = False  # Track if relative orientation is active
 
         self.axis_len = self.camera_distance * 4
         self.update_axes()
+
 
     def update_axes(self):
         base_len = 1e11  # a reasonable default length in world units
@@ -41,7 +43,6 @@ class PygameRenderer:
             'y': (np.array([0, -self.axis_len, 0]), np.array([0, self.axis_len, 0]), (80, 200, 80)),
             'z': (np.array([0, 0, -self.axis_len]), np.array([0, 0, self.axis_len]), (80, 80, 200)),
         }
-
 
     def handle_events(self, objects):
         for event in pygame.event.get():
@@ -92,6 +93,17 @@ class PygameRenderer:
                     self._cycle_tracked_object(objects, 1)
                 elif event.key == pygame.K_r:
                     self._reset_view()
+                    self.relative_orientation = False  # Reset relative orientation
+                elif event.key == pygame.K_o:
+                    # Orient camera relative to tracked object
+                    if self.tracked_object is not None:
+                        self._orient_relative_to_tracked()
+                        self.relative_orientation = True
+                elif event.key == pygame.K_p:
+                    # Reset orientation to default
+                    self.yaw = np.pi / 4
+                    self.pitch = np.pi / 6
+                    self.relative_orientation = False
 
         return True
 
@@ -132,6 +144,18 @@ class PygameRenderer:
         rotated = rot_matrix.T @ pos
         return rotated
 
+    def _orient_relative_to_tracked(self):
+        # Orient camera to look "down" the Z axis relative to tracked object
+        self.pitch = -np.pi / 2
+        self.yaw = 0
+
+        if self.tracked_object is not None:
+            # Project tracked object's position *without* offset and scale
+            projected = self.project_3d_to_2d(self.tracked_object.pos)
+            if projected is not None:
+                # Set offset so that projected point maps exactly to screen center
+                self.offset = np.array([self.screen_width / 2, self.screen_height / 2]) - projected * self.scale
+
     def project_3d_to_2d(self, pos3d):
         rotated = self.rotate_point(pos3d)
         x, y, z = rotated
@@ -149,57 +173,88 @@ class PygameRenderer:
         if projected is None or np.any(np.isnan(projected)) or np.any(np.isinf(projected)):
             return None
         return projected * self.scale + self.offset
-
+            
     def draw_axes_and_grid(self):
-        def nice_number(value):
-            if value <= 0:
-                return 0
-            exponent = np.floor(np.log10(value))
-            fraction = value / 10**exponent
-            if fraction < 2:
-                nice_frac = 1
-            elif fraction < 5:
-                nice_frac = 2
-            else:
-                nice_frac = 5
-            return nice_frac * 10**exponent
+        # Update axes length based on current scale
+        self.update_axes()
 
-        desired_pixels = 100
-        world_size_per_pixel = 1 / self.scale if self.scale != 0 else 1e10
-        grid_size = nice_number(desired_pixels * world_size_per_pixel)
-        max_lines = 30
-
-        # Draw axes
+        # Draw axes (X, Y, Z) lines only
         for start, end, color in self.axes.values():
             p1 = self._project_and_scale(start)
             p2 = self._project_and_scale(end)
             if p1 is not None and p2 is not None:
                 pygame.draw.line(self.screen, color, p1.astype(int), p2.astype(int), 2)
 
-        # Draw XY grid
-        for i in range(-max_lines, max_lines + 1):
-            start_x = self._project_and_scale(np.array([-grid_size * max_lines, i * grid_size, 0]))
-            end_x = self._project_and_scale(np.array([grid_size * max_lines, i * grid_size, 0]))
-            start_y = self._project_and_scale(np.array([i * grid_size, -grid_size * max_lines, 0]))
-            end_y = self._project_and_scale(np.array([i * grid_size, grid_size * max_lines, 0]))
+    def draw_xy_plane(self):
+        # Smaller size for XY plane (e.g., 1/4 of axis_len)
+        plane_size = self.axis_len * 0.001
 
-            if start_x is not None and end_x is not None:
-                pygame.draw.line(self.screen, (40, 40, 40), start_x.astype(int), end_x.astype(int), 1)
-            if start_y is not None and end_y is not None:
-                pygame.draw.line(self.screen, (40, 40, 40), start_y.astype(int), end_y.astype(int), 1)
+        corners_3d = [
+            np.array([-plane_size, -plane_size, 0]),
+            np.array([-plane_size,  plane_size, 0]),
+            np.array([ plane_size,  plane_size, 0]),
+            np.array([ plane_size, -plane_size, 0]),
+        ]
+
+        corners_2d = [self._project_and_scale(c) for c in corners_3d]
+
+        if any(c is None for c in corners_2d):
+            return
+
+        points = [c.astype(int) for c in corners_2d]
+
+        plane_surface = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
+
+        # Gray color with low alpha for subtlety (e.g., 50 out of 255)
+        gray_color = (150, 150, 150, 50)
+
+        pygame.draw.polygon(plane_surface, gray_color, points)
+        self.screen.blit(plane_surface, (0, 0))
+
+    def draw_object(self, obj, valid_point_func, drawn_positions, drawn_labels):
+        proj = self.project_3d_to_2d(obj.pos)
+        if not valid_point_func(proj):
+            return
+
+        screen_pos = proj * self.scale + self.offset
+        radius_px = max(2, int(obj.radius * self.scale))
+
+        # Always draw the object circle (never skip)
+        pygame.draw.circle(self.screen, pygame.Color(obj.color), screen_pos.astype(int), radius_px)
+        drawn_positions.append(screen_pos)  # optional: keep if you want for future use
+
+        # Draw label with shifting to avoid label-to-label overlap only
+        label = self.font.render(obj.name, True, (255, 255, 255))
+        label_rect = label.get_rect()
+
+        # Start label position near the object circle
+        base_label_pos = screen_pos + np.array([radius_px + 5, -radius_px])
+        label_rect.topleft = base_label_pos.astype(int)
+
+        shift_step = 2  # pixels to shift down on overlap
+
+        # Shift label down until it doesn't collide with any other label
+        while any(label_rect.colliderect(other_rect) for other_rect in drawn_labels):
+            label_rect.move_ip(0, shift_step)
+
+        # Draw label and add its rect for future collision checks
+        self.screen.blit(label, label_rect.topleft)
+        drawn_labels.append(label_rect)
 
     def draw(self, objects, step, dt):
         self.screen.fill((0, 0, 0))
-
+        self.draw_xy_plane()
         self.draw_axes_and_grid()
 
-        # Center on tracked object if any
         if self.tracked_object is not None:
-            obj_proj = self.project_3d_to_2d(self.tracked_object.pos)
-            if obj_proj is not None and not np.any(np.isnan(obj_proj)) and not np.any(np.isinf(obj_proj)):
-                screen_center = np.array(self.screen.get_size()) / 2
-                obj_screen = obj_proj * self.scale + self.offset
-                self.offset += screen_center - obj_screen
+            tracked_screen_pos = self._project_and_scale(self.tracked_object.pos)
+            if tracked_screen_pos is not None:
+                center_screen = np.array([self.screen_width / 2, self.screen_height / 2])
+                self.offset += center_screen - tracked_screen_pos
+
+
+
+        # Removed centering on tracked object so grid stays centered on origin
 
         def valid_point(p):
             return p is not None and p.shape == (2,) and not np.any(np.isnan(p)) and not np.any(np.isinf(p))
@@ -211,9 +266,11 @@ class PygameRenderer:
             if valid_point(p1) and valid_point(p2):
                 pygame.draw.line(self.screen, color, p1.astype(int), p2.astype(int), 2)
 
-        # Draw objects
-        for obj in objects:
-            self._draw_object(obj, valid_point)
+        drawn_positions = []
+        drawn_labels = []
+
+        for obj in sorted(objects, key=lambda o: o.mass):
+            self.draw_object(obj, valid_point, drawn_positions, drawn_labels)
 
         # Info texts
         width_px = self.screen.get_size()[0]
@@ -236,19 +293,6 @@ class PygameRenderer:
 
         pygame.display.flip()
         self.clock.tick(60)
-
-    def _draw_object(self, obj, valid_point_func):
-        proj = self.project_3d_to_2d(obj.pos)
-        if not valid_point_func(proj):
-            return
-
-        screen_pos = proj * self.scale + self.offset
-        radius_px = max(2, int(obj.radius * self.scale))
-
-        pygame.draw.circle(self.screen, pygame.Color(obj.color), screen_pos.astype(int), radius_px)
-        label = self.font.render(obj.name, True, (255, 255, 255))
-        label_pos = screen_pos + np.array([radius_px + 5, -radius_px])
-        self.screen.blit(label, label_pos.astype(int))
 
     def quit(self):
         pygame.quit()
