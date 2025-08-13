@@ -12,13 +12,12 @@ render_step = 10
 mass_threshold = 1e20
 eps = 1e-12
 
-tolerance = 10e-3
+tolerance = 10e-2
 α = .5
 safe_factor = .9
 β = .2
 min_dt = .01
-max_dt = 86400
-
+max_dt = 100000
 
 
 # INTEGRATION
@@ -48,7 +47,7 @@ class Integrator:
             o.vel += .5 * (acc0 + acc) * dt
             o.acc = acc
  
-    def euler(self, obj, objects):   # legacy only
+    def euler(self, obj, objects):  # legacy only
         obj.pos += obj.vel * dt
         obj.vel += obj.acc * dt
         obj.acc = self.force_calc.accel_calc(obj, objects)
@@ -78,7 +77,6 @@ class Integrator:
         
 
 
-
     def step(self, objects):
         self.velocity_verlet(objects)
         self.steps += 1
@@ -103,7 +101,7 @@ class ForceCalculator:
             r = np.linalg.norm(r_vec) # normalizing new array to scale total_force later (previously math.sqrt((other.x - self.x)**2 + (other.y - self.y)**2))
             
             if r == 0:
-                continue            
+                continue              
 
             force_mag = self.G * target_object.mass * other.mass / (r**2 + eps**2)
             force_dir = r_vec / r
@@ -207,8 +205,6 @@ class World: # "scene manager"
         self.integrator.step(self.objects)
         self.collision_handler.collision_handling(self.objects)
         self.integrator.adaptive_dt(self.objects)
-        print(self.integrator.dt)
-
 
 
 # INSTANTIATION
@@ -217,12 +213,6 @@ force_calculator = ForceCalculator(G=G, mass_threshold=mass_threshold)
 collision_handler = CollisionHandler()
 integrator = Integrator(dt=dt, force_calc=force_calculator)
 world = World(integrator, force_calculator, environment_builder, collision_handler)
-
-
-
-
-
-
 
 
 # ENERGY
@@ -240,8 +230,6 @@ def total_energy(): # takes a "snapshot" of the system's energy when called
     return energy
 
 
-
-
 world.load_environment()
 renderer = PygameRenderer(scale)
 energy_i = total_energy()
@@ -254,17 +242,16 @@ while running and world.integrator.steps < steps:
 
     # RENDERING
     if world.integrator.steps % render_step == 0:
-        renderer.draw(world.objects, world.integrator.steps, dt)
+        # Pass the total simulation time, not just the current timestep
+        renderer.draw(world.objects, world.integrator.time)
     
     renderer.clock.tick(fps_limit)
 
-    # OUTPUT
-    if world.integrator.steps % 5000 == 0: # do every x steps
-        energy_f = total_energy()
-        print(f"Energy error: {(np.abs(energy_f-energy_i)/np.abs(energy_i))*100:.2e}% ")
+
 
 renderer.quit()
+
+# OUTPUT
 energy_f = total_energy()
 print(f"Final energy error: {(np.abs(energy_f-energy_i)/np.abs(energy_i))*100:.2e}% ")
-
 
