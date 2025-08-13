@@ -8,6 +8,7 @@ class PygameRenderer:
         self.screen = pygame.display.set_mode((screen_width, screen_height), pygame.RESIZABLE)
         pygame.display.set_caption('Orbital Simulation')
         self.clock = pygame.time.Clock()
+        self.sim_time = 0
 
         self.screen_width = screen_width
         self.screen_height = screen_height
@@ -215,7 +216,7 @@ class PygameRenderer:
             return None
         # Clip to reasonable range to avoid pygame overflow
         projected_screen = projected * self.scale + self.offset
-        if np.any(np.abs(projected_screen) > 1e7):  # arbitrary large number
+        if np.any(np.abs(projected_screen) > 1e9):  # arbitrary large number
             return None
         return projected_screen
 
@@ -288,7 +289,7 @@ class PygameRenderer:
         self.screen.blit(label, label_rect.topleft)
         drawn_labels.append(label_rect)
 
-    def draw(self, objects, step, dt):
+    def draw(self, objects, total_sim_time):
 
         for start, end, color in self.axes.values():
             p1 = self._project_and_scale(start)
@@ -298,7 +299,7 @@ class PygameRenderer:
 
         self.screen.fill((0, 0, 0))
         self.draw_xy_plane()
-        self.draw_axes_and_grid()
+
 
         if self.tracked_object is not None:
             tracked_screen_pos = self._project_and_scale(self.tracked_object.pos)
@@ -307,7 +308,7 @@ class PygameRenderer:
                 self.offset += center_screen - tracked_screen_pos
 
         def valid_point(p):
-            return p is not None and p.shape == (2,) and not np.any(np.isnan(p)) and not np.any(np.isinf(p)) and np.all(np.abs(p) < 1e7)
+            return p is not None and p.shape == (2,) and not np.any(np.isnan(p)) and not np.any(np.isinf(p))
 
         # Redraw axes on top for clarity
         for start, end, color in self.axes.values():
@@ -327,10 +328,11 @@ class PygameRenderer:
         km_per_pixel = 1 / self.scale / 1000 if self.scale != 0 else 0
         screen_km = width_px * km_per_pixel
         zoom_text = self.font.render(f"Width: {screen_km:.2f} km", True, (255, 255, 255))
-
-        sim_time = step * dt
+        
+        # Assign the total simulation time directly to the renderer's variable
+        self.sim_time = total_sim_time
         sim_text = self.font.render(
-            f"Sim time: {sim_time:.2f} secs, {sim_time/60/60/24:.2f} days, {sim_time/60/60/24/365:.2f} yrs",
+            f"Sim time: {self.sim_time:.2f} secs, {self.sim_time/60/60/24:.2f} days, {self.sim_time/60/60/24/365:.2f} yrs",
             True, (255, 255, 255)
         )
 
