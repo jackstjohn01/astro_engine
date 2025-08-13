@@ -11,6 +11,8 @@ class PygameRenderer:
 
         self.screen_width = screen_width
         self.screen_height = screen_height
+        self.show_proj_label = False
+
 
         self.offset = np.array([screen_width / 2, screen_height / 2], dtype=float)
         self.scale = scale
@@ -63,11 +65,29 @@ class PygameRenderer:
                     current_pos = np.array(pygame.mouse.get_pos(), dtype=float)
                     delta = current_pos - self.last_mouse_pos_rot
                     sensitivity = 0.005
-                    self.yaw += delta[0] * sensitivity
-                    self.pitch += delta[1] * sensitivity
+
+                    # Invert Y drag if in ortho mode to keep intuitive up/down
+                    pitch_delta = delta[1] * sensitivity
+                    if self.ortho_mode:
+                        pitch_delta *= -1
+
+                    self.yaw -= delta[0] * sensitivity
+                    self.pitch += pitch_delta
+
                     max_pitch = np.pi/2 - 0.01
                     self.pitch = np.clip(self.pitch, -max_pitch, max_pitch)
                     self.last_mouse_pos_rot = current_pos
+
+                    # Hide the projection label as soon as the camera moves
+                    self.show_proj_label = False
+                    
+            elif event.type == pygame.VIDEORESIZE:
+                self.screen_width, self.screen_height = event.size
+                self.screen = pygame.display.set_mode((self.screen_width, self.screen_height), pygame.RESIZABLE)
+
+                # Adjust offset to keep the center visually consistent
+                center_screen = np.array([self.screen_width / 2, self.screen_height / 2])
+                self.offset += center_screen - self.offset  # move offset so center aligns
 
             elif event.type == pygame.MOUSEWHEEL:
                 # Project origin before zoom
@@ -100,12 +120,15 @@ class PygameRenderer:
                     if self.tracked_object is not None:
                         self._orient_relative_to_tracked()
                         self.relative_orientation = True
+                        self.ortho_mode = True
+                        self.show_proj_label = True
                 elif event.key == pygame.K_p:
                     # Reset orientation to default
                     self.yaw = np.pi / 4
                     self.pitch = np.pi / 6
                     self.relative_orientation = False
                     self.ortho_mode = False
+                    self.show_proj_label = True
 
         return True
 
@@ -190,13 +213,16 @@ class PygameRenderer:
         projected = self.project_3d_to_2d(pos3d)
         if projected is None or np.any(np.isnan(projected)) or np.any(np.isinf(projected)):
             return None
-        return projected * self.scale + self.offset
-            
+        # Clip to reasonable range to avoid pygame overflow
+        projected_screen = projected * self.scale + self.offset
+        if np.any(np.abs(projected_screen) > 1e7):  # arbitrary large number
+            return None
+        return projected_screen
+
     def draw_axes_and_grid(self):
         # Update axes length based on current scale
         self.update_axes()
 
-        # Draw axes (X, Y, Z) lines only
         for start, end, color in self.axes.values():
             p1 = self._project_and_scale(start)
             p2 = self._project_and_scale(end)
@@ -215,6 +241,9 @@ class PygameRenderer:
         ]
 
         corners_2d = [self._project_and_scale(c) for c in corners_3d]
+        # Skip drawing if any corner is invalid
+        if any(c is None for c in corners_2d):
+            return
 
         if any(c is None for c in corners_2d):
             return
@@ -260,6 +289,13 @@ class PygameRenderer:
         drawn_labels.append(label_rect)
 
     def draw(self, objects, step, dt):
+
+        for start, end, color in self.axes.values():
+            p1 = self._project_and_scale(start)
+            p2 = self._project_and_scale(end)
+            if p1 is not None and p2 is not None:
+                pygame.draw.line(self.screen, color, p1.astype(int), p2.astype(int), 2)
+
         self.screen.fill((0, 0, 0))
         self.draw_xy_plane()
         self.draw_axes_and_grid()
@@ -270,12 +306,8 @@ class PygameRenderer:
                 center_screen = np.array([self.screen_width / 2, self.screen_height / 2])
                 self.offset += center_screen - tracked_screen_pos
 
-
-
-        # Removed centering on tracked object so grid stays centered on origin
-
         def valid_point(p):
-            return p is not None and p.shape == (2,) and not np.any(np.isnan(p)) and not np.any(np.isinf(p))
+            return p is not None and p.shape == (2,) and not np.any(np.isnan(p)) and not np.any(np.isinf(p)) and np.all(np.abs(p) < 1e7)
 
         # Redraw axes on top for clarity
         for start, end, color in self.axes.values():
@@ -308,6 +340,16 @@ class PygameRenderer:
         self.screen.blit(zoom_text, (10, 10))
         self.screen.blit(sim_text, (10, 50))
         self.screen.blit(fps_text, (10, 70))
+
+        # --- Projection mode indicator ---
+        if self.show_proj_label:
+            mode_text = "O" if self.ortho_mode else "P"
+            proj_label = self.font.render(mode_text, True, (0, 255, 0))
+            label_rect = proj_label.get_rect()
+            label_rect.topright = (self.screen_width - 10, 10)
+            self.screen.blit(proj_label, label_rect.topleft)
+
+
 
         pygame.display.flip()
         self.clock.tick(60)
