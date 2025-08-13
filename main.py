@@ -1,6 +1,8 @@
 # IMPORTS
 import numpy as np
 from render import PygameRenderer
+import requests
+import re
 
 # CONSTANTS/SETTINGS
 G = 6.6743E-11
@@ -18,6 +20,24 @@ safe_factor = .9
 β = .2
 min_dt = .01
 max_dt = 100000
+
+HORIZONS_IDS = {
+    "Mercury": 199,
+    "Venus": 299,
+    "Earth": 399,
+    "Moon": 301,
+    "Mars": 499,
+    "Jupiter": 599,
+    "Saturn": 699,
+    "Uranus": 799,
+    "Neptune": 899,
+    "Pluto": 999,
+    "Sun": 10
+}
+
+
+
+
 
 
 # INTEGRATION
@@ -187,6 +207,7 @@ class EnvironmentBuilder:
         m1 = CelestialBody("m1", "#FF0000", 0, 0, 0, 0, 0, 0, 10, 1)
         m2 = CelestialBody("m2", "#0000FF", 10, 0, 0, -1, 0, 0, 5, 1)
         self.objects.extend([m1, m2])
+
 
 # WORLD MANAGER
 class World: # "scene manager"
