@@ -27,10 +27,10 @@ class PygameRenderer:
         self.rotating = False
         self.last_mouse_pos_rot = None
         self.relative_orientation = False  # Track if relative orientation is active
+        self.ortho_mode = False
 
         self.axis_len = self.camera_distance * 4
         self.update_axes()
-
 
     def update_axes(self):
         base_len = 1e11  # a reasonable default length in world units
@@ -50,12 +50,12 @@ class PygameRenderer:
                 return False
 
             elif event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button == 3:  # Right click starts rotation
+                if event.button == 1:  # Right click starts rotation
                     self.rotating = True
                     self.last_mouse_pos_rot = np.array(pygame.mouse.get_pos(), dtype=float)
 
             elif event.type == pygame.MOUSEBUTTONUP:
-                if event.button == 3:
+                if event.button == 1:
                     self.rotating = False
 
             elif event.type == pygame.MOUSEMOTION:
@@ -94,6 +94,7 @@ class PygameRenderer:
                 elif event.key == pygame.K_r:
                     self._reset_view()
                     self.relative_orientation = False  # Reset relative orientation
+                    self.ortho_mode = False
                 elif event.key == pygame.K_o:
                     # Orient camera relative to tracked object
                     if self.tracked_object is not None:
@@ -104,6 +105,7 @@ class PygameRenderer:
                     self.yaw = np.pi / 4
                     self.pitch = np.pi / 6
                     self.relative_orientation = False
+                    self.ortho_mode = False
 
         return True
 
@@ -145,18 +147,22 @@ class PygameRenderer:
         return rotated
 
     def _orient_relative_to_tracked(self):
-        # Orient camera to look "down" the Z axis relative to tracked object
-        self.pitch = -np.pi / 2
+        # Switch to orthographic mode for top-down view
+        self.ortho_mode = True
+
+        # Avoid exact -π/2 to prevent gimbal lock
+        self.pitch = -np.pi/2 + 1e-6
         self.yaw = 0
 
         if self.tracked_object is not None:
-            # Project tracked object's position *without* offset and scale
-            projected = self.project_3d_to_2d(self.tracked_object.pos)
+            projected = self.project_3d_to_2d_ortho(self.tracked_object.pos)
             if projected is not None:
-                # Set offset so that projected point maps exactly to screen center
                 self.offset = np.array([self.screen_width / 2, self.screen_height / 2]) - projected * self.scale
 
     def project_3d_to_2d(self, pos3d):
+        if self.ortho_mode:
+            return self.project_3d_to_2d_ortho(pos3d)
+
         rotated = self.rotate_point(pos3d)
         x, y, z = rotated
         z_cam = z + self.camera_distance
@@ -167,6 +173,12 @@ class PygameRenderer:
 
         factor = self.camera_distance / z_cam
         return np.array([x * factor, -y * factor])
+
+    def project_3d_to_2d_ortho(self, pos3d):
+        """Orthographic projection: preserves XY distances."""
+        rotated = self.rotate_point(pos3d)
+        # Simply drop Z after rotation, keep XY coordinates
+        return np.array([rotated[0], -rotated[1]])
 
     def _project_and_scale(self, pos3d):
         projected = self.project_3d_to_2d(pos3d)
