@@ -129,23 +129,29 @@ class PygameRenderer:
     def rotate_point(self, pos):
         pos = np.array(pos, dtype=float)
 
-        pitch = -self.pitch  # flip pitch for intuitive control
+        # Use pitch directly, don't flip sign here, handle flipping only in projection if needed
+        pitch = self.pitch  
+        yaw = self.yaw
 
         cos_p = np.cos(pitch)
         sin_p = np.sin(pitch)
-        cos_y = np.cos(self.yaw)
-        sin_y = np.sin(self.yaw)
+        cos_y = np.cos(yaw)
+        sin_y = np.sin(yaw)
 
-        forward = np.array([cos_p*cos_y, cos_p*sin_y, sin_p])
+        # Define forward vector in camera space (right-handed)
+        forward = np.array([cos_p * cos_y, cos_p * sin_y, sin_p])
         up = np.array([0, 0, 1])
         right = np.cross(up, forward)
-        right /= np.linalg.norm(right) + 1e-15  # avoid divide by zero
+        right /= np.linalg.norm(right) + 1e-15  # normalize
         up = np.cross(forward, right)
 
+        # Rotation matrix columns are right, up, forward (camera basis)
         rot_matrix = np.column_stack((right, up, forward))
+
+        # Rotate point into camera space
         rotated = rot_matrix.T @ pos
         return rotated
-
+    
     def _orient_relative_to_tracked(self):
         # Switch to orthographic mode for top-down view
         self.ortho_mode = True
@@ -172,14 +178,14 @@ class PygameRenderer:
             return None
 
         factor = self.camera_distance / z_cam
+        # **Note:** don't invert y here, keep consistent
         return np.array([x * factor, -y * factor])
 
     def project_3d_to_2d_ortho(self, pos3d):
-        """Orthographic projection: preserves XY distances."""
         rotated = self.rotate_point(pos3d)
-        # Simply drop Z after rotation, keep XY coordinates
-        return np.array([rotated[0], -rotated[1]])
-
+        # Orthographic projection: drop z, keep x, y same sign as perspective projection
+        return np.array([rotated[0], rotated[1]])
+        
     def _project_and_scale(self, pos3d):
         projected = self.project_3d_to_2d(pos3d)
         if projected is None or np.any(np.isnan(projected)) or np.any(np.isinf(projected)):
